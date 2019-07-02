@@ -1,0 +1,17 @@
+# github.com/caarlos0/env/v6 v6.0.0
+github.com/caarlos0/env/v6
+# github.com/gorilla/mux v1.7.3
+github.com/gorilla/mux
+# github.com/jmoiron/sqlx v1.2.0
+github.com/jmoiron/sqlx
+github.com/jmoiron/sqlx/reflectx
+# github.com/lib/pq v1.1.1
+github.com/lib/pq
+github.com/lib/pq/oid
+github.com/lib/pq/scram
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9
+github.com/skip2/go-qrcode
+github.com/skip2/go-qrcode/bitset
+github.com/skip2/go-qrcode/reedsolomon
