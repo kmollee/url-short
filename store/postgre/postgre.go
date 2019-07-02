@@ -7,12 +7,14 @@ import (
 	"log"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/kmollee/url-short/base62"
 	"github.com/kmollee/url-short/store"
-	"github.com/lytics/base62"
 	"github.com/skip2/go-qrcode"
 
 	_ "github.com/lib/pq" // load postgresql driver
 )
+
+const hashShift = 10000
 
 type storage struct{ db *sqlx.DB }
 
@@ -35,13 +37,10 @@ func (s *storage) Close() error {
 }
 
 func (s *storage) Info(hashCode string) (*store.Item, error) {
-	id, err := base62.StdEncoding.DecodeString(hashCode)
-	if err != nil {
-		return nil, err
-	}
+	id := base62.Decode(hashCode) - hashShift
 
 	var item store.Item
-	err = s.db.QueryRowx("SELECT url, count, qrcode FROM urlshorter WHERE uid=$1", id).StructScan(&item)
+	err := s.db.QueryRowx("SELECT url, count, qrcode FROM urlshorter WHERE uid=$1", id).StructScan(&item)
 	if err != nil {
 		return nil, err
 	}
@@ -72,16 +71,15 @@ func (s *storage) Save(url string) (string, error) {
 		return "", err
 	}
 
-	return base62.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", id))), nil
+	return base62.Encode(int(id) + hashShift), nil
 }
 
 func (s *storage) Load(hashCode string) (string, error) {
-	id, err := base62.StdEncoding.DecodeString(hashCode)
-	if err != nil {
-		return "", err
-	}
+	// id, err := base62.StdEncoding.DecodeString(hashCode)
+	id := base62.Decode(hashCode) - hashShift
 	var url string
-	err = s.db.QueryRowx("UPDATE urlshorter set count=count+1 WHERE uid=$1 RETURNING url", id).Scan(&url)
+	err := s.db.QueryRowx("UPDATE urlshorter set count=count+1 WHERE uid=$1 RETURNING url", id).Scan(&url)
+
 	if err != nil {
 		return "", err
 	}
