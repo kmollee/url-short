@@ -2,24 +2,37 @@ package controller
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/lytics/base62"
+	"github.com/kmollee/url-short/store"
 )
 
-func New() http.Handler {
+type handler struct {
+	svc store.Service
+}
+
+func New(svc store.Service) http.Handler {
 	r := mux.NewRouter()
-	r.HandleFunc("/", encode)
-	r.HandleFunc("/{hash}", redirect)
+
+	h := &handler{svc: svc}
+
+	r.HandleFunc("/", h.encode)
+	r.HandleFunc("/redirect/{hash}", h.redirect)
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	return r
 }
 
-func encode(w http.ResponseWriter, r *http.Request) {
+func (h *handler) encode(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("ENCODE!")
+
 	switch r.Method {
 	case http.MethodGet:
-		fmt.Fprintln(w, `
+		log.Println("GET")
+		fmt.Fprintf(w, `
 		<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -39,6 +52,7 @@ func encode(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case http.MethodPost:
+		log.Println("POST")
 		err := r.ParseForm()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -53,23 +67,30 @@ func encode(w http.ResponseWriter, r *http.Request) {
 			url = "http://" + url
 		}
 
-		hashUrl := base62.StdEncoding.EncodeToString([]byte(url))
-		fmt.Fprintf(w, "<html>hash url: <a href=\"/%s\">%s</a></html>", hashUrl, hashUrl)
+		hashCode, err := h.svc.Save(url)
+		if err != nil {
+			log.Printf("ERR: %v", err)
+			http.Error(w, "could not save url", http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, "<html>hash url: <a href=\"/redirect/%s\">%s</a></html>", hashCode, hashCode)
 		return
-
+	default:
+		http.Error(w, "method is not grant", http.StatusNotAcceptable)
 	}
 }
 
-func redirect(w http.ResponseWriter, r *http.Request) {
+func (h *handler) redirect(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	b, err := base62.StdEncoding.DecodeString(vars["hash"])
+	url, err := h.svc.Load(vars["hash"])
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "ERROR", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, string(b), http.StatusPermanentRedirect)
+	http.Redirect(w, r, url, http.StatusPermanentRedirect)
 	return
 }
