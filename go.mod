@@ -8,4 +8,5 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.1.1
 	github.com/lytics/base62 v0.0.0-20180808010106-0ee4de5a5d6d
+	github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9
 )

@@ -21,6 +21,7 @@ func New(svc store.Service) http.Handler {
 
 	r.HandleFunc("/", h.encode)
 	r.HandleFunc("/redirect/{hash}", h.redirect)
+	r.HandleFunc("/info/{hash}", h.info)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	return r
 }
@@ -73,7 +74,7 @@ func (h *handler) encode(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not save url", http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprintf(w, "<html>hash url: <a href=\"/redirect/%s\">%s</a></html>", hashCode, hashCode)
+		fmt.Fprintf(w, "<html>hash url: <a href=\"/redirect/%s\">%s</a>  <a href=\"/info/%s\">INFO</a></html>", hashCode, hashCode, hashCode)
 		return
 	default:
 		http.Error(w, "method is not grant", http.StatusNotAcceptable)
@@ -91,6 +92,24 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, url, http.StatusPermanentRedirect)
+	http.Redirect(w, r, url, http.StatusMovedPermanently)
+	return
+}
+
+func (h *handler) info(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+
+	item, err := h.svc.Info(vars["hash"])
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "ERROR", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, `
+	<html>%s %d  <img src="data:image/png;base64, %s" /></html>
+`, item.URL, item.Count, item.Qrcode)
+
 	return
 }

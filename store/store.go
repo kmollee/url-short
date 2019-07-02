@@ -1,8 +1,9 @@
 package store
 
 type Item struct {
-	URL   string `json:"url" db:"url"`
-	Count int    `json:"count" db:"count"`
+	URL    string `json:"url" db:"url"`
+	Count  int    `json:"count" db:"count"`
+	Qrcode string `json:"qrcode" db:"qrcode"`
 }
 
 type Service interface {

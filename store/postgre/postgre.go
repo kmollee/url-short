@@ -2,12 +2,14 @@ package postgre
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"log"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/kmollee/url-short/store"
 	"github.com/lytics/base62"
+	"github.com/skip2/go-qrcode"
 
 	_ "github.com/lib/pq" // load postgresql driver
 )
@@ -18,7 +20,8 @@ var schema = `
 CREATE TABLE IF NOT EXISTS urlshorter (
 	uid serial NOT NULL,
 	url VARCHAR not NULL UNIQUE,
-	count INTEGER DEFAULT 0
+	count INTEGER DEFAULT 0,
+	qrcode TEXT NOT NULL
 );
 `
 
@@ -38,7 +41,7 @@ func (s *storage) Info(hashCode string) (*store.Item, error) {
 	}
 
 	var item store.Item
-	err = s.db.QueryRowx("SELECT * FROM urlshorter WHERE id=$1", id).Scan(&item)
+	err = s.db.QueryRowx("SELECT url, count, qrcode FROM urlshorter WHERE uid=$1", id).StructScan(&item)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +58,12 @@ func (s *storage) Save(url string) (string, error) {
 	switch err {
 	case sql.ErrNoRows:
 		log.Println("create new record")
-		err := s.db.QueryRow("INSERT INTO urlshorter (url) VALUES ($1) RETURNING uid;", url).Scan(&id)
+		var png []byte
+		png, err := qrcode.Encode(url, qrcode.Medium, 256)
+
+		encodeImage := base64.StdEncoding.EncodeToString(png)
+
+		err = s.db.QueryRow("INSERT INTO urlshorter (url, qrcode) VALUES ($1, $2) RETURNING uid;", url, encodeImage).Scan(&id)
 		if err != nil {
 			return "", err
 		}
@@ -72,13 +80,13 @@ func (s *storage) Load(hashCode string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var item store.Item
-	err = s.db.QueryRowx("UPDATE urlshorter set count=count+1 WHERE uid=$1 RETURNING url, count;", id).StructScan(&item)
+	var url string
+	err = s.db.QueryRowx("UPDATE urlshorter set count=count+1 WHERE uid=$1 RETURNING url", id).Scan(&url)
 	if err != nil {
 		return "", err
 	}
 
-	return item.URL, nil
+	return url, nil
 }
 
 // New returns a postgres backed storage service.
