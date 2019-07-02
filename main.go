@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/kmollee/url-short/controller"
 )
 
 const defaultPort = "8000"
@@ -16,8 +18,10 @@ func main() {
 		listenPort = port
 	}
 
+	r := controller.New()
+
 	log.Printf("start listen on %v", port)
-	if err := http.ListenAndServe(":"+listenPort, nil); err != nil {
+	if err := http.ListenAndServe(":"+listenPort, r); err != nil {
 		log.Fatal(err)
 	}
 
