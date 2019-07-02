@@ -1,0 +1,17 @@
+{{define "title"}}{{.item.URL}}{{end}}
+{{define "content"}}
+
+<h1>URL SHORTER</h1>
+
+<img src="data:image/png;base64, {{.item.Qrcode}}" />
+
+
+
+<p>
+        ORIGIN URL: <a href="{{.item.URL}}">{{.item.URL}}</a><br />
+        SHORT URL: <a href="{{.shortURL}}">{{.shortURL}}</a><br />
+        REDIRECT COUNT: {{.item.Count}}
+</p>
+
+
+{{end}}

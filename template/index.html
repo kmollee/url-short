@@ -1,0 +1,27 @@
+{{define "title"}}URL SHORTER{{end}}
+{{define "content"}}
+
+<h1>URL SHORTER</h1>
+
+<form action="/" method="POST">
+        Paste the URL to be shortened<br />
+        <input type="text" name="url">
+        <input type="submit" value="short!">
+</form>
+
+
+
+{{if .shortURL }}
+<ul>
+        <li>Original URL: <a href="{{.originURL}}">{{.originURL}}</a></li>
+        <li>Generated URL: <a href="{{.shortURL|safehtml}}">{{.shortURL}}</a></li>
+        <li><a href="/info/{{.hash}}">INFO</a></li>
+
+</ul>
+{{end}}
+
+
+
+
+
+{{end}}

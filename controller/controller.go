@@ -6,9 +6,25 @@ import (
 	"net/http"
 	"strings"
 
+	"html/template"
+
 	"github.com/gorilla/mux"
 	"github.com/kmollee/url-short/store"
 )
+
+var temps = map[string]*template.Template{}
+
+var funcMap = template.FuncMap{
+	"safehtml": func(s string) template.HTML {
+		log.Println(s)
+		return template.HTML(s)
+	},
+}
+
+func init() {
+	temps["index"] = template.Must(template.New("layout.html").Funcs(funcMap).ParseFiles("template/layout.html", "template/index.html"))
+	temps["info"] = template.Must(template.New("layout.html").Funcs(funcMap).ParseFiles("template/layout.html", "template/info.html"))
+}
 
 type handler struct {
 	svc store.Service
@@ -27,33 +43,16 @@ func New(svc store.Service) http.Handler {
 }
 
 func (h *handler) encode(w http.ResponseWriter, r *http.Request) {
-
-	log.Println("ENCODE!")
-
+	t := temps["index"]
 	switch r.Method {
 	case http.MethodGet:
-		log.Println("GET")
-		fmt.Fprintf(w, `
-		<!DOCTYPE html>
-<html lang="en">
-<head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="ie=edge">
-        <title>Url-Short</title>
-</head>
-<body>
-        <form action="/" method="post">
-                URL:<input type="text" name="url">
-                <input type="submit" value="Send">
-        </form>
-</body>
-</html>	
-		`)
+		err := t.Execute(w, nil)
+		if err != nil {
+			log.Println(err)
+		}
 		return
 
 	case http.MethodPost:
-		log.Println("POST")
 		err := r.ParseForm()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -74,7 +73,15 @@ func (h *handler) encode(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not save url", http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprintf(w, "<html>hash url: <a href=\"/redirect/%s\">%s</a>  <a href=\"/info/%s\">INFO</a></html>", hashCode, hashCode, hashCode)
+
+		err = t.Execute(w, map[string]string{
+			"shortURL":  fmt.Sprintf("http://%s/redirect/%s", r.Host, hashCode),
+			"hash":      hashCode,
+			"originURL": url,
+		})
+		if err != nil {
+			log.Println(err)
+		}
 		return
 	default:
 		http.Error(w, "method is not grant", http.StatusNotAcceptable)
@@ -97,7 +104,7 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) info(w http.ResponseWriter, r *http.Request) {
-
+	t := temps["info"]
 	vars := mux.Vars(r)
 
 	item, err := h.svc.Info(vars["hash"])
@@ -107,9 +114,12 @@ func (h *handler) info(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, `
-	<html>%s %d  <img src="data:image/png;base64, %s" /></html>
-`, item.URL, item.Count, item.Qrcode)
-
+	err = t.Execute(w, map[string]interface{}{
+		"shortURL": fmt.Sprintf("http://%s/redirect/%s", r.Host, vars["hash"]),
+		"item":     item,
+	})
+	if err != nil {
+		log.Println(err)
+	}
 	return
 }
